@@ -2,6 +2,7 @@ package main
 
 // Fontes
 // https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+// https://www.rfc-editor.org/rfc/rfc9106.html#name-recommendations
 
 import (
 	"crypto/hmac"
