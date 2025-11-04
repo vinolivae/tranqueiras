@@ -17,12 +17,10 @@ import (
 func main() {
 	// --- Dados de Teste ---
 	key := []byte("minha-chave-secreta-muito-longa")
-	message := []byte("Estes sao os dados que quero autenticar")
 	password := []byte("Minh@SenhaForte!123")
 
 	// O Argon2 requer um "salt" (dado aleatório).
-	// Para um benchmark, podemos usar um estático.
-	salt := []byte("somesalt16bytes") // 16 bytes
+	salt := []byte("somesalt16bytes")
 
 	fmt.Println("Iniciando benchmarks...\n")
 
@@ -37,9 +35,9 @@ func main() {
 
 	// Loop por 1 segundo
 	for time.Since(startTime) < time.Second {
-		// Esta é a operação de verificação
+		// Operação de verificação
 		h := hmac.New(sha256.New, key)
-		h.Write(message)
+		h.Write(password)
 		h.Sum(nil)
 		operations++
 	}
@@ -72,13 +70,13 @@ func main() {
 
 	// 2. Medir o tempo para VERIFICAR O HASH
 	// A "verificação" em Go puro envolve rodar o hash novamente com os
-	// mesmos parâmetros (salt, etc.) e comparar o resultado em tempo constante.
+	// mesmos parâmetros e comparar o resultado em tempo constante.
 	startVerify := time.Now()
 	hash2 := argon2.IDKey(password, salt, timeCost, memoryCost, parallelism, keyLen)
 	match := hmac.Equal(hash1, hash2)
 	verifyTime := time.Since(startVerify)
 
 	fmt.Printf("Tempo para verificar UM hash: %s (%.2f ms)\n", verifyTime, float64(verifyTime.Nanoseconds())/1_000_000.0)
-	fmt.Printf("Resultado da verificação: %t\n", match)
+	fmt.Printf("Senha válida? %t\n", match)
 	fmt.Println(strings.Repeat("-", 50))
 }
