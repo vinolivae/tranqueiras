@@ -1,0 +1,196 @@
+# 3DES (Triple DES) - Documentação
+
+## Visão Geral
+
+3DES (Triple Data Encryption Standard) é um algoritmo de criptografia simétrica que aplica o algoritmo DES (Data Encryption Standard) três vezes a cada bloco de dados. Esta implementação fornece funcionalidades de descriptografia usando o modo ECB (Electronic Codebook) com suporte a chaves de 16 bytes (opção de chaveamento 2).
+
+## Características
+
+- **Algoritmo**: 3DES (Triple DES)
+- **Modo de operação**: ECB (Electronic Codebook)
+- **Tamanho da chave**: 16 bytes (128 bits) - Opção de chaveamento 2
+- **Expansão da chave**: k1+k2 → k1+k2+k1 (24 bytes)
+- **Tamanho do bloco**: 8 bytes (64 bits)
+- **Uso principal**: Descriptografia de PIN blocks
+
+## Conceitos Importantes
+
+### Opção de Chaveamento 2
+Esta implementação usa a opção de chaveamento 2 do 3DES, que utiliza duas chaves independentes (k1 e k2):
+- A chave fornecida tem 16 bytes: k1 (8 bytes) + k2 (8 bytes)
+- A chave é expandida para 24 bytes: k1 + k2 + k1
+- O processo é: Encrypt(k1) → Decrypt(k2) → Encrypt(k1)
+
+### Modo ECB
+O modo ECB processa cada bloco de forma independente:
+- Simples de implementar
+- Não requer vetor de inicialização (IV)
+- **Atenção**: Não é recomendado para grandes volumes de dados pois blocos idênticos produzem cifras idênticas
+
+## Estrutura do Código
+
+### Função `getKey`
+```go
+func getKey(keyReference, network string) (string, error)
+```
+
+Simula a obtenção de chaves criptográficas baseadas em referências e redes.
+
+**Parâmetros:**
+- `keyReference`: Identificador do provedor ("pismo", "orbitall", "tutuka")
+- `network`: Rede do cartão (ex: "MASTERCARD")
+
+**Retorna:** Chave hexadecimal (string) ou erro
+
+**Chaves suportadas:**
+- `pismo` + `MASTERCARD`: "0123456789ABCDEFFEDCBA9876543210"
+- `pismo` (outras redes): "FEDCBA98765432100123456789ABCDEF"
+- `orbitall`: "11112222333344445555666677778888"
+- `tutuka`: "88887777666655554444333322221111"
+
+⚠️ **Nota**: Em produção, essas chaves devem ser armazenadas de forma segura (HSM, vault, etc).
+
+### Função `decrypt3DESECB`
+```go
+func decrypt3DESECB(key, ciphertext []byte) ([]byte, error)
+```
+
+Realiza a descriptografia usando 3DES no modo ECB.
+
+**Parâmetros:**
+- `key`: Chave de 16 bytes
+- `ciphertext`: Dados cifrados (deve ser múltiplo de 8 bytes)
+
+**Retorna:** Dados decifrados ou erro
+
+**Processo:**
+1. Valida o tamanho da chave (16 bytes)
+2. Valida que o ciphertext é múltiplo do tamanho do bloco (8 bytes)
+3. Expande a chave de 16 para 24 bytes
+4. Cria o cipher 3DES
+5. Decifra cada bloco de 8 bytes
+
+### Função `extractPinFromPinblock`
+```go
+func extractPinFromPinblock(decryptedPinblock []byte, pan, isoFormat string) (string, error)
+```
+
+Extrai o PIN do pinblock decifrado de acordo com o formato ISO especificado.
+
+**Parâmetros:**
+- `decryptedPinblock`: Pinblock já decifrado (8 bytes)
+- `pan`: Primary Account Number (número do cartão)
+- `isoFormat`: Formato ISO ("1", "2" ou "3")
+
+**Formatos ISO suportados:**
+
+#### ISO Format 3
+- Realiza XOR do pinblock decifrado com o bloco do PAN
+- Bloco do PAN: "0000" + 12 dígitos do meio do PAN
+- Estrutura: `[Control][Length][PIN][Padding]`
+
+#### ISO Format 2
+- Formato direto sem XOR com PAN
+- Estrutura: `[Length][PIN][Random]`
+
+#### ISO Format 1
+- Similar ao Format 2 mas deve começar com '1'
+- Estrutura: `[1][Length][PIN][Padding]`
+
+### Função `DecryptBlock`
+```go
+func DecryptBlock(blockHex, pan, keyReference, network, isoFormat string) (string, error)
+```
+
+Função principal que orquestra todo o processo de descriptografia.
+
+**Parâmetros:**
+- `blockHex`: Pinblock cifrado em hexadecimal
+- `pan`: Primary Account Number
+- `keyReference`: Referência da chave
+- `network`: Rede do cartão
+- `isoFormat`: Formato ISO ("1", "2" ou "3")
+
+**Retorna:** PIN decifrado (string) ou erro
+
+**Fluxo de execução:**
+1. Obtém a chave baseada na referência e rede
+2. Decodifica a chave de hexadecimal para bytes
+3. Decodifica o pinblock de hexadecimal para bytes
+4. Decifra o pinblock usando 3DES-ECB
+5. Extrai o PIN do pinblock decifrado conforme formato ISO
+
+## Exemplo de Uso
+
+```go
+package main
+
+import (
+    "fmt"
+    tripleDES "path/to/3des"
+)
+
+func main() {
+    // Dados de exemplo
+    blockHex := "1234567890ABCDEF"
+    pan := "1234567890123456"
+    keyReference := "pismo"
+    network := "MASTERCARD"
+    isoFormat := "3"
+
+    // Descriptografar o PIN block
+    pin, err := tripleDES.DecryptBlock(blockHex, pan, keyReference, network, isoFormat)
+    if err != nil {
+        fmt.Printf("Erro: %v\n", err)
+        return
+    }
+
+    fmt.Printf("PIN decifrado: %s\n", pin)
+}
+```
+
+## Segurança
+
+### Considerações Importantes
+
+1. **3DES está obsoleto**: O NIST descontinuou o 3DES em 2023. Para novos sistemas, use AES.
+
+2. **Modo ECB é inseguro**: Para dados maiores que um bloco, use modos mais seguros como CBC, CTR ou GCM.
+
+3. **Gerenciamento de chaves**: 
+   - Nunca armazene chaves no código-fonte
+   - Use HSM (Hardware Security Module) ou serviços de vault
+   - Implemente rotação de chaves
+   - Use chaves diferentes para diferentes propósitos
+
+4. **PIN Blocks**:
+   - Esta implementação é específica para PIN blocks de cartões
+   - PIN blocks devem ser processados em ambientes seguros (PCI-DSS)
+   - Nunca logue ou armazene PINs decifrados
+
+5. **Formato ISO**:
+   - ISO Format 3 é mais seguro por usar XOR com o PAN
+   - Sempre valide o formato antes da descriptografia
+
+## Requisitos
+
+- Go 1.13 ou superior
+- Pacote `crypto/des` (biblioteca padrão)
+- Pacote `encoding/hex` (biblioteca padrão)
+
+## Limitações
+
+- Apenas descriptografia (não há função de criptografia)
+- Suporte limitado a chaves pré-configuradas
+- Não implementa outros modos além de ECB
+- Focado em PIN blocks (8 bytes)
+
+## Referências
+
+- [NIST SP 800-67: Recommendation for the Triple Data Encryption Algorithm (TDEA) Block Cipher](https://csrc.nist.gov/publications/detail/sp/800-67/rev-2/final)
+- [ISO 9564-1: PIN Block Formats](https://www.iso.org/standard/68669.html)
+- [PCI PIN Security Requirements](https://www.pcisecuritystandards.org/)
+
+## Aviso Legal
+
+Este código é fornecido para fins educacionais e de referência. Para aplicações em produção que lidam com dados sensíveis de cartões e PINs, consulte especialistas em segurança e certifique-se de estar em conformidade com PCI-DSS e outras regulamentações aplicáveis.

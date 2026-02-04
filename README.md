@@ -3,3 +3,5 @@
 [Leitor de Fatura](https://github.com/vinolivae/tranqueiras/blob/main/golang/invoice_reader/main.go)
 
 [Encode para Senhas](https://github.com/vinolivae/tranqueiras/tree/main/golang/password_hashing)
+
+[Criptografia](https://github.com/vinolivae/tranqueiras/tree/main/golang/encrypt)
