@@ -22,9 +22,6 @@ func getKey(keyReference, network string) (string, error) {
 	case "orbitall":
 		// Chave de exemplo para pinblock_encryption
 		return "11112222333344445555666677778888", nil
-	case "tutuka":
-		// Chave de exemplo para tutuka_pinblock_encryption
-		return "88887777666655554444333322221111", nil
 	default:
 		return "", fmt.Errorf("referência de chave desconhecida: %s", keyReference)
 	}
